@@ -1,4 +1,7 @@
+// File: /midi2text/js/main.js (Updated)
+
 document.addEventListener('DOMContentLoaded', () => {
+    // ... (UI elements)
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const statusDiv = document.getElementById('status');
@@ -9,12 +12,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const nowPlayingZone = document.getElementById('now-playing-zone');
     const nowPlayingOutput = document.getElementById('now-playing-output');
     const stopButton = document.getElementById('stop-button');
+    // NEW: Get the new button
+    const sendToPlayerButton = document.getElementById('send-to-player-button');
 
+    // ... (State variables)
     let polyphonicResult = null;
     let monophonicResult = null;
     let currentResult = null;
-    let finalHideTimer = null;
 
+    // --- Event Listeners ---
+    // ... (drag/drop listeners remain the same)
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) handleFile(e.target.files[0]);
@@ -27,10 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
         option.addEventListener('click', (e) => {
             e.preventDefault();
             if (e.currentTarget.classList.contains('active')) return;
-
             switcherOptions.forEach(opt => opt.classList.remove('active'));
             e.currentTarget.classList.add('active');
-
             const selectedMode = e.currentTarget.getAttribute('data-mode');
             currentResult = selectedMode === 'poly' ? polyphonicResult : monophonicResult;
             displayResults(currentResult);
@@ -55,14 +60,48 @@ document.addEventListener('DOMContentLoaded', () => {
         SimpleNotePlayer.stop();
         endPlayback();
     });
+    
+    // NEW: Event listener for sending data to the player
+    sendToPlayerButton.addEventListener('click', () => {
+        if (!currentResult) return;
 
+        const instruments = [];
+        const tracks = [];
+        let instrumentIdCounter = 1;
+
+        // Create instrument definitions
+        for (const instrumentName in currentResult) {
+            instruments.push({
+                id: instrumentIdCounter++,
+                name: instrumentName.replace(/【|】/g, ''), // Clean up name
+                waveform: 'triangle' // Default to triangle
+            });
+        }
+        
+        // Create tracks and link to instruments
+        for (const instrumentName in currentResult) {
+            const instrumentData = currentResult[instrumentName];
+            instrumentData.forEach(track => {
+                tracks.push({
+                    instrumentName: instrumentName.replace(/【|】/g, ''),
+                    score: track.notes_string
+                });
+            });
+        }
+        
+        const dataForPlayer = { instruments, tracks };
+
+        sessionStorage.setItem('midiConversionData', JSON.stringify(dataForPlayer));
+        window.location.href = 'player.html';
+    });
+
+    // --- Core Functions ---
+    // ... (handleFile remains the same)
     function handleFile(file) {
         if (!wasmReady) { statusDiv.textContent = '错误：Wasm 模块仍在加载中...'; return; }
         if (!file.type.includes('midi') && !file.name.endsWith('.mid')) { statusDiv.textContent = '错误：请上传有效的 MIDI 文件'; return; }
-
         statusDiv.textContent = `正在处理: ${file.name}...`;
         resultsContainer.hidden = true;
-
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -70,15 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 FS.writeFile('/input.midi', byteArray);
                 Module._midicsv();
                 const csvData = FS.readFile('/output.csv', { encoding: 'utf8' });
-                
                 polyphonicResult = SimpleScoreGenerator.generate(csvData, { monophonic_mode: false });
                 monophonicResult = SimpleScoreGenerator.generate(csvData, { monophonic_mode: true });
-                
                 document.querySelector('.switcher-option[data-mode="poly"]').classList.remove('active');
                 document.querySelector('.switcher-option[data-mode="mono"]').classList.add('active');
                 currentResult = monophonicResult;
                 displayResults(currentResult);
-
                 statusDiv.textContent = '处理完成！';
             } catch (error) { console.error('转换失败:', error); statusDiv.textContent = `处理失败: ${error.message}`; }
         };
@@ -86,29 +122,28 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsArrayBuffer(file);
     }
 
+    // --- UI & Playback ---
     function displayResults(resultData) {
         resultsOutput.innerHTML = ''; 
         if (!resultData || resultData.error) {
             resultsOutput.innerHTML = `<p>${resultData ? resultData.error : '无数据'}</p>`;
             resultsContainer.hidden = false;
+            sendToPlayerButton.hidden = true; // Hide button if no data
             return;
         }
 
+        // ... (The rest of the displayResults function remains the same)
         for (const instrumentName in resultData) {
             const instrumentTracks = resultData[instrumentName];
             const instrumentDiv = document.createElement('div');
             instrumentDiv.className = 'instrument-block';
             instrumentDiv.innerHTML = `<h4>${instrumentName}</h4>`;
-            
             instrumentTracks.forEach(track => {
                 const durationInSeconds = (track.duration_ms / 1000).toFixed(2);
-                
                 const trackBlock = document.createElement('div');
                 trackBlock.className = 'track-block';
-
                 const trackHeader = document.createElement('div');
                 trackHeader.className = 'track-header';
-
                 const playButton = document.createElement('button');
                 playButton.className = 'track-play-button';
                 playButton.textContent = '▶';
@@ -119,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         notesString: track.notes_string
                     }]);
                 };
-
                 trackHeader.innerHTML = `
                     <strong>${track.track_name}</strong>
                     <div class="track-meta">
@@ -128,12 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
                 trackHeader.appendChild(playButton);
-
                 const textarea = document.createElement('textarea');
                 textarea.className = 'track-textarea';
                 textarea.readOnly = true;
                 textarea.value = track.notes_string;
-
                 trackBlock.appendChild(trackHeader);
                 trackBlock.appendChild(textarea);
                 instrumentDiv.appendChild(trackBlock);
@@ -141,19 +173,15 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsOutput.appendChild(instrumentDiv);
         }
         resultsContainer.hidden = false;
+        // MODIFIED: Show the button when results are displayed
+        sendToPlayerButton.hidden = false;
     }
     
+    // ... (startPlayback, updateNowPlayingDisplay, endPlayback functions remain the same)
     const activeNotes = new Map();
-
     function startPlayback(tracksData) {
-        if (finalHideTimer) {
-            clearTimeout(finalHideTimer);
-            finalHideTimer = null;
-        }
-
         dropZone.hidden = true;
         nowPlayingZone.hidden = false;
-        
         nowPlayingOutput.innerHTML = '';
         activeNotes.clear();
         const uniqueInstruments = [...new Set(tracksData.map(t => t.instrument.name))];
@@ -165,33 +193,21 @@ document.addEventListener('DOMContentLoaded', () => {
             nowPlayingOutput.appendChild(instDiv);
             activeNotes.set(inst, new Set());
         });
-        
         SimpleNotePlayer.play(tracksData, {
             onNoteOn: (instrument, trackName, noteName) => {
                 const notesSet = activeNotes.get(instrument);
-                if (notesSet) {
-                    notesSet.add(noteName);
-                    updateNowPlayingDisplay(instrument);
-                }
+                if (notesSet) { notesSet.add(noteName); updateNowPlayingDisplay(instrument); }
             },
             onNoteOff: (instrument, trackName, noteName) => {
                 const notesSet = activeNotes.get(instrument);
-                if (notesSet) {
-                    notesSet.delete(noteName);
-                    updateNowPlayingDisplay(instrument);
-                }
+                if (notesSet) { notesSet.delete(noteName); updateNowPlayingDisplay(instrument); }
             },
             onPlaybackEnd: () => {
                 nowPlayingOutput.innerHTML = '<h4>播放完成！</h4>';
-                
-                finalHideTimer = setTimeout(() => {
-                    endPlayback();
-                    finalHideTimer = null;
-                }, 1000);
+                setTimeout(() => { endPlayback(); }, 1000);
             }
         });
     }
-
     function updateNowPlayingDisplay(instrument) {
         const instId = `playing-${instrument.replace(/[^a-zA-Z0-9]/g, '')}`;
         const instDiv = document.getElementById(instId);
@@ -201,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
             notesSpan.textContent = notes.length > 0 ? notes.join(', ') : '---';
         }
     }
-    
     function endPlayback() {
         dropZone.hidden = false;
         nowPlayingZone.hidden = true;

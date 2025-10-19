@@ -83,6 +83,7 @@ const SimpleNotePlayer = (() => {
                 playNote(note.frequency, noteAudioTime, note.durationMs / 1000.0, note.waveform);
                 
                 const uiCallbackTime = note.startTimeMs - ((now - playbackStartTime) * 1000);
+                // MODIFIED: Pass the full note.instrument object in the callback
                 const noteOnTimer = setTimeout(() => note.callbacks.onNoteOn(note.instrument, note.trackName, note.noteName), uiCallbackTime);
                 const noteOffTimer = setTimeout(() => note.callbacks.onNoteOff(note.instrument, note.trackName, note.noteName), uiCallbackTime + note.durationMs);
                 uiUpdateTimers.push(noteOnTimer, noteOffTimer);
@@ -157,7 +158,8 @@ const SimpleNotePlayer = (() => {
                         durationMs: durationMs,
                         frequency: midiToFreq(noteToMidi(noteName)),
                         waveform: instrument.waveform || 'triangle',
-                        instrument: instrument.name,
+                        // MODIFIED: Pass the full instrument object
+                        instrument: instrument,
                         trackName: trackName,
                         callbacks: callbacks
                     });
@@ -173,13 +175,9 @@ const SimpleNotePlayer = (() => {
         playbackStartTime = audioCtx.currentTime;
         schedulerIntervalId = setInterval(scheduler, 50);
 
-        // --- BUG FIX STARTS HERE ---
-        // REMOVED the faulty `if` condition. This timer is the definitive trigger
-        // for a natural playback end. The stop() function itself prevents duplication.
         const playbackEndTimer = setTimeout(() => {
             stop(true);
         }, maxDuration + 200);
-        // --- BUG FIX ENDS HERE ---
         
         uiUpdateTimers.push(playbackEndTimer);
     }

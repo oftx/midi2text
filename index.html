@@ -1,3 +1,5 @@
+<!-- File: /midi2text/index.html (Updated) -->
+
 <!DOCTYPE html>
 <html lang="zh-CN" data-theme="dark">
 <head>
@@ -43,6 +45,8 @@
                   <a href="#" class="switcher-option" data-mode="poly">复调 (更多轨道)</a>
                   <a href="#" class="switcher-option active" data-mode="mono">单音优先 (更少轨道)</a>
                 </div>
+                <!-- MODIFIED: Added new button -->
+                <button id="send-to-player-button" class="contrast outline" hidden>转到播放器</button>
                 <button id="play-all-button" class="outline">全部播放</button>
             </div>
         </div>
@@ -78,6 +82,9 @@
     </footer>
 
   </main>
+  
+  <!-- NEW: Toast container -->
+  <div id="toast" class="toast-notification"></div>
 
   <script>
     var wasmReady = false;
