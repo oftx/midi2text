@@ -1,0 +1,75 @@
+#drop-zone {
+  border: 2px dashed var(--secondary);
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+#drop-zone.dragover {
+  background-color: var(--secondary-hover);
+  border-color: var(--primary);
+}
+
+#status {
+  margin-top: 1rem;
+  font-style: italic;
+  color: var(--muted-color);
+}
+
+#results-container {
+    margin-top: 2rem;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.instrument-block {
+    margin-bottom: 2rem;
+    border-left: 3px solid var(--primary);
+    padding-left: 1rem;
+}
+
+.track-block {
+    margin-bottom: 1rem;
+}
+
+.track-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--card-background-color);
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    border: 1px solid var(--card-border-color);
+    border-bottom: none;
+}
+
+.track-header strong {
+    font-size: 1.1em;
+}
+
+.track-meta {
+    font-size: 0.9em;
+    color: var(--muted-color);
+}
+
+.track-meta span {
+    margin-left: 1rem;
+}
+
+.track-textarea {
+    width: 100%;
+    height: 150px; /* 固定高度 */
+    overflow-y: auto; /* 垂直滚动条 */
+    resize: vertical; /* 允许用户垂直调整大小 */
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    padding: 1rem;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
