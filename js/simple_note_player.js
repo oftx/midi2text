@@ -1,21 +1,50 @@
+// File: /midi2text/js/simple_note_player.js (Fixed)
+
 const SimpleNotePlayer = (() => {
     let audioCtx = null;
     let activeOscillators = [];
-    
-    let allNotesToPlay = [];
-    let currentlyActiveTrackIds = new Set();
+    let worker = null;
     
     let isPlaying = false;
     let isPaused = false;
-    let animationFrameId = null;
-    let playbackProgressMs = 0;
-    let lastTickTimestamp = 0;
-    let totalDurationMs = 0;
-    let playedNoteCount = 0;
-    let totalNoteCount = 0;
-    let nextNoteIndex = 0;
 
     const NOTE_TO_MIDI = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 };
+
+    function initWorker() {
+        if (!worker) {
+            worker = new Worker('js/player_worker.js');
+            worker.onmessage = handleWorkerMessage;
+        }
+    }
+
+    function handleWorkerMessage(e) {
+        const { type, note, progress } = e.data;
+        switch (type) {
+            case 'playNote':
+                if (window.lastPlaybackCallbacks.onNoteOn) {
+                    window.lastPlaybackCallbacks.onNoteOn(note.instrument, note.trackName, note.noteName);
+                }
+                setTimeout(() => {
+                    if (window.lastPlaybackCallbacks.onNoteOff) {
+                         window.lastPlaybackCallbacks.onNoteOff(note.instrument, note.trackName, note.noteName);
+                    }
+                }, note.durationMs);
+                
+                const startTime = audioCtx.currentTime;
+                playNote(note.frequency, startTime, note.durationMs / 1000.0, note.waveform);
+                break;
+            
+            case 'progressUpdate':
+                if (window.lastPlaybackCallbacks.onProgressUpdate) {
+                    window.lastPlaybackCallbacks.onProgressUpdate(progress);
+                }
+                break;
+
+            case 'playbackEnded':
+                stop(true);
+                break;
+        }
+    }
 
     function noteToMidi(noteName) {
         const match = noteName.match(/^([A-G]#?)(-?[0-9])$/);
@@ -76,66 +105,14 @@ const SimpleNotePlayer = (() => {
         });
         activeOscillators = [];
     }
-
-    function tick(timestamp) {
-        if (!isPlaying || isPaused) return;
-
-        if (lastTickTimestamp === 0) {
-            lastTickTimestamp = timestamp;
-        }
-        const deltaTime = timestamp - lastTickTimestamp;
-        lastTickTimestamp = timestamp;
-        playbackProgressMs += deltaTime;
-
-        while (nextNoteIndex < allNotesToPlay.length && allNotesToPlay[nextNoteIndex].startTimeMs <= playbackProgressMs) {
-            const note = allNotesToPlay[nextNoteIndex];
-            if (currentlyActiveTrackIds.has(note.trackId)) {
-                const timeUntilStart = (note.startTimeMs - playbackProgressMs) / 1000;
-                const startTime = audioCtx.currentTime + Math.max(0, timeUntilStart);
-                playNote(note.frequency, startTime, note.durationMs / 1000.0, note.waveform);
-                
-                setTimeout(() => {
-                    if (currentlyActiveTrackIds.has(note.trackId)) {
-                        playedNoteCount++;
-                        window.lastPlaybackCallbacks.onNoteOn(note.instrument, note.trackName, note.noteName);
-                    }
-                }, Math.max(0, timeUntilStart * 1000));
-
-                setTimeout(() => {
-                    window.lastPlaybackCallbacks.onNoteOff(note.instrument, note.trackName, note.noteName);
-                }, Math.max(0, timeUntilStart * 1000) + note.durationMs);
-            }
-            nextNoteIndex++;
-        }
-        
-        if (window.lastPlaybackCallbacks.onProgressUpdate) {
-            window.lastPlaybackCallbacks.onProgressUpdate({
-                currentTimeMs: playbackProgressMs,
-                totalTimeMs: totalDurationMs,
-                playedNotes: playedNoteCount,
-                totalNotes: totalNoteCount
-            });
-        }
-        
-        if (playbackProgressMs >= totalDurationMs) {
-            setTimeout(() => stop(true), 200);
-        } else {
-            animationFrameId = requestAnimationFrame(tick);
-        }
-    }
-
+    
     function stop(isNaturalEnd = false) {
-        if (!audioCtx) return;
-        
+        if (worker) {
+            worker.postMessage({ command: 'stop' });
+        }
         isPlaying = false;
         isPaused = false;
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
         silenceAllNotes();
-        allNotesToPlay = [];
-        currentlyActiveTrackIds.clear();
         if (isNaturalEnd && window.lastPlaybackCallbacks && typeof window.lastPlaybackCallbacks.onPlaybackEnd === 'function') {
             window.lastPlaybackCallbacks.onPlaybackEnd();
         }
@@ -147,12 +124,12 @@ const SimpleNotePlayer = (() => {
             alert("无法初始化音频播放器。");
             return;
         }
+        initWorker();
         stop();
         window.lastPlaybackCallbacks = callbacks;
-        currentlyActiveTrackIds = new Set(initialActiveTrackIds);
         
         let rawNotes = [];
-        totalDurationMs = 0;
+        let totalDurationMs = 0;
         
         tracksData.forEach(track => {
             let playheadTimeMs = 0;
@@ -180,74 +157,52 @@ const SimpleNotePlayer = (() => {
             }
         });
         
-        allNotesToPlay = rawNotes.sort((a, b) => a.startTimeMs - b.startTimeMs);
-        totalNoteCount = allNotesToPlay.length;
-        playedNoteCount = 0;
-        playbackProgressMs = 0;
-        nextNoteIndex = 0;
-        lastTickTimestamp = 0;
+        const allNotesToPlay = rawNotes.sort((a, b) => a.startTimeMs - b.startTimeMs);
+        
         isPlaying = true;
         isPaused = false;
 
-        animationFrameId = requestAnimationFrame(tick);
+        worker.postMessage({
+            command: 'start',
+            data: {
+                allNotesToPlay,
+                initialActiveTrackIds: Array.from(initialActiveTrackIds),
+                totalDurationMs
+            }
+        });
     }
 
     function pause() {
         if (!isPlaying || isPaused) return;
         isPaused = true;
-        lastTickTimestamp = 0;
         silenceAllNotes();
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
+        worker.postMessage({ command: 'pause' });
     }
 
     function resume() {
         if (!isPlaying || !isPaused) return;
         isPaused = false;
-        animationFrameId = requestAnimationFrame(tick);
+        worker.postMessage({ command: 'resume' });
     }
     
     function seek(targetTimeMs) {
         if (!isPlaying) return;
-        
         silenceAllNotes();
-        playbackProgressMs = Math.max(0, Math.min(targetTimeMs, totalDurationMs));
-        
-        nextNoteIndex = allNotesToPlay.findIndex(note => note.startTimeMs >= playbackProgressMs);
-        if (nextNoteIndex === -1) nextNoteIndex = allNotesToPlay.length;
-
-        playedNoteCount = 0;
-        for (let i = 0; i < nextNoteIndex; i++) {
-            if (currentlyActiveTrackIds.has(allNotesToPlay[i].trackId)) {
-                playedNoteCount++;
-            }
-        }
-
-        if (window.lastPlaybackCallbacks.onProgressUpdate) {
-            window.lastPlaybackCallbacks.onProgressUpdate({
-                currentTimeMs: playbackProgressMs,
-                totalTimeMs: totalDurationMs,
-                playedNotes: playedNoteCount,
-                totalNotes: totalNoteCount
-            });
-        }
+        worker.postMessage({ command: 'seek', data: { targetTimeMs } });
     }
 
     function updateActiveTracks(newActiveTrackIds) {
-        currentlyActiveTrackIds = new Set(newActiveTrackIds);
+        if (worker) {
+            worker.postMessage({ command: 'updateActiveTracks', data: { newActiveTrackIds: Array.from(newActiveTrackIds) } });
+        }
         if (window.lastPlaybackCallbacks && typeof window.lastPlaybackCallbacks.onMute === 'function') {
-            window.lastPlaybackCallbacks.onMute(currentlyActiveTrackIds);
+            window.lastPlaybackCallbacks.onMute(newActiveTrackIds);
         }
     }
 
     function updateTrackInstrument(trackId, newInstrument) {
-        for (let i = 0; i < allNotesToPlay.length; i++) {
-            if (allNotesToPlay[i].trackId === trackId) {
-                allNotesToPlay[i].instrument = newInstrument;
-                allNotesToPlay[i].waveform = newInstrument.waveform;
-            }
+        if (worker) {
+            worker.postMessage({ command: 'updateTrackInstrument', data: { trackId, newInstrument } });
         }
     }
     
