@@ -306,3 +306,19 @@ footer small a:hover {
 #tracks-container textarea {
     font-size: 0.9em;
 }
+
+/* --- NEW: Track Selection Controls --- */
+.track-selection-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0 1rem;
+}
+
+.track-header .track-checkbox,
+.track-controls .track-checkbox {
+    margin: 0;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-right: 0.5rem;
+}
