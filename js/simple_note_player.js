@@ -1,17 +1,19 @@
-// File: /midi2text/js/simple_note_player.js (Fixed)
-
 const SimpleNotePlayer = (() => {
     let audioCtx = null;
     let activeOscillators = [];
-    let uiUpdateTimers = [];
-
-    let schedulerIntervalId = null;
+    
     let allNotesToPlay = [];
-    let nextNoteIndex = 0;
-    let playbackStartTime = 0;
-
-    // NEW: State for active tracks
     let currentlyActiveTrackIds = new Set();
+    
+    let isPlaying = false;
+    let isPaused = false;
+    let animationFrameId = null;
+    let playbackProgressMs = 0;
+    let lastTickTimestamp = 0;
+    let totalDurationMs = 0;
+    let playedNoteCount = 0;
+    let totalNoteCount = 0;
+    let nextNoteIndex = 0;
 
     const NOTE_TO_MIDI = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 };
 
@@ -64,125 +66,194 @@ const SimpleNotePlayer = (() => {
             activeOscillators = activeOscillators.filter(o => o.oscillator !== oscillator);
         };
     }
-    
-    function scheduler() {
-        const scheduleAheadTime = 100.0;
-        const now = audioCtx.currentTime;
-        const lookaheadTime = now + (scheduleAheadTime / 1000.0);
 
-        while (nextNoteIndex < allNotesToPlay.length) {
-            const note = allNotesToPlay[nextNoteIndex];
-            const noteAudioTime = playbackStartTime + (note.startTimeMs / 1000.0);
-            
-            if (noteAudioTime < lookaheadTime) {
-                // MODIFIED: Check if the note's track is active before playing
-                if (currentlyActiveTrackIds.has(note.trackId)) {
-                    playNote(note.frequency, noteAudioTime, note.durationMs / 1000.0, note.waveform);
-                }
-                
-                const uiCallbackTime = note.startTimeMs - ((now - playbackStartTime) * 1000);
-                const noteOnTimer = setTimeout(() => {
-                    // Also check here for UI updates
-                    if (currentlyActiveTrackIds.has(note.trackId)) {
-                        note.callbacks.onNoteOn(note.instrument, note.trackName, note.noteName);
-                    }
-                }, uiCallbackTime);
-                const noteOffTimer = setTimeout(() => note.callbacks.onNoteOff(note.instrument, note.trackName, note.noteName), uiCallbackTime + note.durationMs);
-                uiUpdateTimers.push(noteOnTimer, noteOffTimer);
-                
-                nextNoteIndex++;
-            } else {
-                break;
-            }
-        }
-
-        if (nextNoteIndex >= allNotesToPlay.length) {
-            if (schedulerIntervalId) {
-                clearInterval(schedulerIntervalId);
-                schedulerIntervalId = null;
-            }
-        }
-    }
-
-    function stop(isNaturalEnd = false) {
+    function silenceAllNotes() {
         if (!audioCtx) return;
-        if (schedulerIntervalId) {
-            clearInterval(schedulerIntervalId);
-            schedulerIntervalId = null;
-        }
         const now = audioCtx.currentTime;
         activeOscillators.forEach(({ gainNode }) => {
             gainNode.gain.cancelScheduledValues(now);
             gainNode.gain.linearRampToValueAtTime(0, now + 0.1);
         });
-        uiUpdateTimers.forEach(timerId => clearTimeout(timerId));
         activeOscillators = [];
-        uiUpdateTimers = [];
+    }
+
+    function tick(timestamp) {
+        if (!isPlaying || isPaused) return;
+
+        if (lastTickTimestamp === 0) {
+            lastTickTimestamp = timestamp;
+        }
+        const deltaTime = timestamp - lastTickTimestamp;
+        lastTickTimestamp = timestamp;
+        playbackProgressMs += deltaTime;
+
+        while (nextNoteIndex < allNotesToPlay.length && allNotesToPlay[nextNoteIndex].startTimeMs <= playbackProgressMs) {
+            const note = allNotesToPlay[nextNoteIndex];
+            if (currentlyActiveTrackIds.has(note.trackId)) {
+                const timeUntilStart = (note.startTimeMs - playbackProgressMs) / 1000;
+                const startTime = audioCtx.currentTime + Math.max(0, timeUntilStart);
+                playNote(note.frequency, startTime, note.durationMs / 1000.0, note.waveform);
+                
+                setTimeout(() => {
+                    if (currentlyActiveTrackIds.has(note.trackId)) {
+                        playedNoteCount++;
+                        window.lastPlaybackCallbacks.onNoteOn(note.instrument, note.trackName, note.noteName);
+                    }
+                }, Math.max(0, timeUntilStart * 1000));
+
+                setTimeout(() => {
+                    window.lastPlaybackCallbacks.onNoteOff(note.instrument, note.trackName, note.noteName);
+                }, Math.max(0, timeUntilStart * 1000) + note.durationMs);
+            }
+            nextNoteIndex++;
+        }
+        
+        if (window.lastPlaybackCallbacks.onProgressUpdate) {
+            window.lastPlaybackCallbacks.onProgressUpdate({
+                currentTimeMs: playbackProgressMs,
+                totalTimeMs: totalDurationMs,
+                playedNotes: playedNoteCount,
+                totalNotes: totalNoteCount
+            });
+        }
+        
+        if (playbackProgressMs >= totalDurationMs) {
+            setTimeout(() => stop(true), 200);
+        } else {
+            animationFrameId = requestAnimationFrame(tick);
+        }
+    }
+
+    function stop(isNaturalEnd = false) {
+        if (!audioCtx) return;
+        
+        isPlaying = false;
+        isPaused = false;
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+        silenceAllNotes();
         allNotesToPlay = [];
-        nextNoteIndex = 0;
-        currentlyActiveTrackIds.clear(); // Clear the set on stop
+        currentlyActiveTrackIds.clear();
         if (isNaturalEnd && window.lastPlaybackCallbacks && typeof window.lastPlaybackCallbacks.onPlaybackEnd === 'function') {
             window.lastPlaybackCallbacks.onPlaybackEnd();
         }
     }
-    
-    // MODIFIED: `play` now accepts a third argument `initialActiveTrackIds`
+
     async function play(tracksData, callbacks, initialActiveTrackIds = new Set()) {
         await ensureAudioContext();
         if (!audioCtx) {
-            alert("无法初始化音频播放器。您的浏览器可能不支持 Web Audio API。");
+            alert("无法初始化音频播放器。");
             return;
         }
         stop();
         window.lastPlaybackCallbacks = callbacks;
         currentlyActiveTrackIds = new Set(initialActiveTrackIds);
-
+        
         let rawNotes = [];
-        let maxDuration = 0;
-
+        totalDurationMs = 0;
+        
         tracksData.forEach(track => {
-            const { instrument, trackName, notesString, trackId } = track;
             let playheadTimeMs = 0;
-            const events = notesString.split(' ').filter(s => s);
+            const events = track.notesString.split(' ').filter(s => s);
             events.forEach(event => {
                 const parts = event.split('/');
                 const durationMs = parseInt(parts[1], 10) || 500;
                 const isNote = parts[0] !== '@' && parts[0] !== '0';
                 if (isNote) {
-                    const noteName = parts[0];
                     rawNotes.push({
-                        noteName: noteName,
+                        noteName: parts[0],
                         startTimeMs: playheadTimeMs,
                         durationMs: durationMs,
-                        frequency: midiToFreq(noteToMidi(noteName)),
-                        waveform: instrument.waveform || 'triangle',
-                        instrument: instrument,
-                        trackName: trackName,
-                        trackId: trackId, // NEW: Attach trackId to each note
-                        callbacks: callbacks
+                        frequency: midiToFreq(noteToMidi(parts[0])),
+                        waveform: track.instrument.waveform || 'triangle',
+                        instrument: track.instrument,
+                        trackName: track.trackName,
+                        trackId: track.trackId
                     });
                 }
                 playheadTimeMs += durationMs;
             });
-             if (playheadTimeMs > maxDuration) { maxDuration = playheadTimeMs; }
+            if (playheadTimeMs > totalDurationMs) {
+                totalDurationMs = playheadTimeMs;
+            }
         });
         
         allNotesToPlay = rawNotes.sort((a, b) => a.startTimeMs - b.startTimeMs);
+        totalNoteCount = allNotesToPlay.length;
+        playedNoteCount = 0;
+        playbackProgressMs = 0;
         nextNoteIndex = 0;
-        playbackStartTime = audioCtx.currentTime;
-        schedulerIntervalId = setInterval(scheduler, 50);
-        const playbackEndTimer = setTimeout(() => { stop(true); }, maxDuration + 200);
-        uiUpdateTimers.push(playbackEndTimer);
+        lastTickTimestamp = 0;
+        isPlaying = true;
+        isPaused = false;
+
+        animationFrameId = requestAnimationFrame(tick);
     }
 
-    // NEW: Public method to update active tracks in real-time
+    function pause() {
+        if (!isPlaying || isPaused) return;
+        isPaused = true;
+        lastTickTimestamp = 0;
+        silenceAllNotes();
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+    }
+
+    function resume() {
+        if (!isPlaying || !isPaused) return;
+        isPaused = false;
+        animationFrameId = requestAnimationFrame(tick);
+    }
+    
+    function seek(targetTimeMs) {
+        if (!isPlaying) return;
+        
+        silenceAllNotes();
+        playbackProgressMs = Math.max(0, Math.min(targetTimeMs, totalDurationMs));
+        
+        nextNoteIndex = allNotesToPlay.findIndex(note => note.startTimeMs >= playbackProgressMs);
+        if (nextNoteIndex === -1) nextNoteIndex = allNotesToPlay.length;
+
+        playedNoteCount = 0;
+        for (let i = 0; i < nextNoteIndex; i++) {
+            if (currentlyActiveTrackIds.has(allNotesToPlay[i].trackId)) {
+                playedNoteCount++;
+            }
+        }
+
+        if (window.lastPlaybackCallbacks.onProgressUpdate) {
+            window.lastPlaybackCallbacks.onProgressUpdate({
+                currentTimeMs: playbackProgressMs,
+                totalTimeMs: totalDurationMs,
+                playedNotes: playedNoteCount,
+                totalNotes: totalNoteCount
+            });
+        }
+    }
+
     function updateActiveTracks(newActiveTrackIds) {
         currentlyActiveTrackIds = new Set(newActiveTrackIds);
-        // Immediately clear playing notes display for muted tracks
         if (window.lastPlaybackCallbacks && typeof window.lastPlaybackCallbacks.onMute === 'function') {
             window.lastPlaybackCallbacks.onMute(currentlyActiveTrackIds);
         }
     }
 
-    return { play, stop, updateActiveTracks };
+    function updateTrackInstrument(trackId, newInstrument) {
+        for (let i = 0; i < allNotesToPlay.length; i++) {
+            if (allNotesToPlay[i].trackId === trackId) {
+                allNotesToPlay[i].instrument = newInstrument;
+                allNotesToPlay[i].waveform = newInstrument.waveform;
+            }
+        }
+    }
+    
+    function getPlaybackState() {
+        return { isPlaying, isPaused };
+    }
+
+    return { play, stop, pause, resume, seek, updateActiveTracks, updateTrackInstrument, getPlaybackState };
 })();

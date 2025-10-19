@@ -1,6 +1,8 @@
+
+// File: /midi2text/js/player_main.js (Updated)
+
 document.addEventListener('DOMContentLoaded', () => {
     const playAllButton = document.getElementById('play-all-button');
-    const stopButton = document.getElementById('stop-button');
     const addTrackButton = document.getElementById('add-track-button');
     const tracksContainer = document.getElementById('tracks-container');
     const manageInstrumentsButton = document.getElementById('manage-instruments-button');
@@ -13,36 +15,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const toastElement = document.getElementById('toast');
     const selectAllTracksButton = document.getElementById('select-all-tracks');
     const invertSelectionTracksButton = document.getElementById('invert-selection-tracks');
+    const playPauseButton = document.getElementById('play-pause-button');
+    const progressBar = document.getElementById('progress-bar');
+    const timeProgress = document.getElementById('time-progress');
+    const noteProgress = document.getElementById('note-progress');
 
     let trackCounter = 0;
-    let instruments = [{
-        id: 1,
-        name: '圆润三角波',
-        waveform: 'triangle'
-    }, {
-        id: 2,
-        name: '柔和正弦波',
-        waveform: 'sine'
-    }, {
-        id: 3,
-        name: '芯片方波',
-        waveform: 'square'
-    }, {
-        id: 4,
-        name: '锐利锯齿波',
-        waveform: 'sawtooth'
-    }, {
-        id: 5,
-        name: '电子琴音色',
-        waveform: 'sine'
-    }, {
-        id: 6,
-        name: '贝斯音色',
-        waveform: 'sawtooth'
-    }];
+    let instruments = [
+        { id: 1, name: '圆润三角波', waveform: 'triangle' },
+        { id: 2, name: '柔和正弦波', waveform: 'sine' },
+        { id: 3, name: '芯片方波', waveform: 'square' },
+        { id: 4, name: '锐利锯齿波', waveform: 'sawtooth' },
+        { id: 5, name: '电子琴音色', waveform: 'sine' },
+        { id: 6, name: '贝斯音色', waveform: 'sawtooth' }
+    ];
     let nextInstrumentId = 7;
     const activeNotes = new Map();
     let toastTimer;
+    let isSeeking = false;
+    let currentTracksData = [];
+    let totalDurationMsForSeek = 0;
+
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
 
     function showToast(message) {
         if (toastTimer) clearTimeout(toastTimer);
@@ -52,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             toastElement.classList.remove('show');
         }, 3000);
     }
-
+    
     function renderInstruments() {
         instrumentListDiv.innerHTML = '';
         if (instruments.length === 0) {
@@ -111,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
+    
     function addNewTrack(instrumentId = null, score = '') {
         trackCounter++;
         const trackId = `player-track-${trackCounter}`;
@@ -154,15 +153,66 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateNowPlayingInstrumentsUI() {
+        const activeInstruments = new Map();
+        document.querySelectorAll('.track-block').forEach(block => {
+            const checkbox = block.querySelector('.track-checkbox');
+            if (checkbox && checkbox.checked) {
+                const instrumentId = parseInt(block.querySelector('.instrument-select').value, 10);
+                const instrument = instruments.find(i => i.id === instrumentId);
+                if (instrument && !activeInstruments.has(instrument.id)) {
+                    activeInstruments.set(instrument.id, instrument);
+                }
+            }
+        });
+    
+        const displayedDivs = nowPlayingOutput.querySelectorAll('.playing-instrument');
+    
+        displayedDivs.forEach(div => {
+            const instId = parseInt(div.id.split('-')[1], 10);
+            if (!activeInstruments.has(instId)) {
+                const removedInstrument = instruments.find(i => i.id === instId);
+                if (removedInstrument) {
+                    activeNotes.delete(removedInstrument.name);
+                }
+                div.remove();
+            }
+        });
+    
+        activeInstruments.forEach(inst => {
+            const instId = `playing-${inst.id}`;
+            if (!document.getElementById(instId)) {
+                const instDiv = document.createElement('div');
+                instDiv.className = 'playing-instrument';
+                instDiv.id = instId;
+                instDiv.innerHTML = `<span class="playing-instrument-name">${inst.name}:</span><span class="playing-notes">---</span>`;
+                nowPlayingOutput.appendChild(instDiv);
+                if (!activeNotes.has(inst.name)) {
+                    activeNotes.set(inst.name, new Set());
+                }
+            }
+        });
+    }
+
     function updatePlayerForSelectionChange() {
         const activeIds = new Set();
         document.querySelectorAll('.track-checkbox:checked').forEach(cb => {
             activeIds.add(cb.dataset.trackId);
         });
         SimpleNotePlayer.updateActiveTracks(activeIds);
-    }
 
+        const state = SimpleNotePlayer.getPlaybackState();
+        if (state.isPlaying) {
+            updateNowPlayingInstrumentsUI();
+        }
+    }
+    
     playAllButton.addEventListener('click', () => {
+        const state = SimpleNotePlayer.getPlaybackState();
+        if (state.isPlaying) {
+            SimpleNotePlayer.stop();
+        }
+
         const tracksToPlay = [];
         const activeTrackIds = new Set();
         const trackBlocks = document.querySelectorAll('.track-block');
@@ -199,16 +249,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (tracksToPlay.length > 0) {
-            startPlayback(tracksToPlay, activeTrackIds);
+            currentTracksData = tracksToPlay;
+            startPlayback(currentTracksData, activeTrackIds);
         } else {
             showToast("没有可播放的轨道。");
         }
     });
-
-    stopButton.addEventListener('click', () => {
-        SimpleNotePlayer.stop();
-        nowPlayingZone.hidden = true;
+    
+    playPauseButton.addEventListener('click', () => {
+        const state = SimpleNotePlayer.getPlaybackState();
+        if (state.isPaused) {
+            SimpleNotePlayer.resume();
+            playPauseButton.textContent = '⏸️';
+        } else if (state.isPlaying) {
+            SimpleNotePlayer.pause();
+            playPauseButton.textContent = '▶️';
+        } else {
+            playAllButton.click();
+        }
     });
+    
+    progressBar.addEventListener('mousedown', () => isSeeking = true);
+    progressBar.addEventListener('mouseup', () => isSeeking = false);
+    progressBar.addEventListener('input', () => {
+        if (!isSeeking) return;
+        const progress = progressBar.value / 1000;
+        const targetTimeMs = totalDurationMsForSeek * progress;
+        SimpleNotePlayer.seek(targetTimeMs);
+    });
+
     addTrackButton.addEventListener('click', () => addNewTrack(1, ''));
     manageInstrumentsButton.addEventListener('click', () => instrumentModal.showModal());
     closeModalButton.addEventListener('click', () => instrumentModal.close());
@@ -217,6 +286,19 @@ document.addEventListener('DOMContentLoaded', () => {
     tracksContainer.addEventListener('change', (e) => {
         if (e.target.matches('.track-checkbox')) {
             updatePlayerForSelectionChange();
+        }
+        if (e.target.matches('.instrument-select')) {
+            const state = SimpleNotePlayer.getPlaybackState();
+            if (state.isPlaying) {
+                const trackBlock = e.target.closest('.track-block');
+                const trackId = trackBlock.id;
+                const newInstrumentId = parseInt(e.target.value, 10);
+                const newInstrument = instruments.find(i => i.id === newInstrumentId);
+                if (newInstrument) {
+                    SimpleNotePlayer.updateTrackInstrument(trackId, newInstrument);
+                    updateNowPlayingInstrumentsUI();
+                }
+            }
         }
     });
 
@@ -229,17 +311,20 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.track-checkbox').forEach(cb => cb.checked = !cb.checked);
         updatePlayerForSelectionChange();
     });
-
+    
     function startPlayback(tracksData, activeTrackIds) {
         nowPlayingZone.hidden = false;
+        playPauseButton.textContent = '⏸️';
         nowPlayingOutput.innerHTML = '';
         activeNotes.clear();
+        
         const uniqueInstruments = new Map();
         tracksData.forEach(track => {
             if (activeTrackIds.has(track.trackId) && !uniqueInstruments.has(track.instrument.id)) {
                 uniqueInstruments.set(track.instrument.id, track.instrument);
             }
         });
+        
         uniqueInstruments.forEach(inst => {
             const instDiv = document.createElement('div');
             instDiv.className = 'playing-instrument';
@@ -248,6 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nowPlayingOutput.appendChild(instDiv);
             activeNotes.set(inst.name, new Set());
         });
+        
         SimpleNotePlayer.play(tracksData, {
             onNoteOn: (instrument, trackName, noteName) => {
                 const notesSet = activeNotes.get(instrument.name);
@@ -265,16 +351,28 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             onPlaybackEnd: () => {
                 nowPlayingOutput.innerHTML = '<h4>播放完成！</h4>';
+                playPauseButton.textContent = '▶️';
                 setTimeout(() => {
                     nowPlayingZone.hidden = true;
+                    progressBar.value = 0;
+                    timeProgress.textContent = '00:00 / 00:00';
+                    noteProgress.textContent = '0 / 0';
                 }, 1000);
+            },
+            onProgressUpdate: (progress) => {
+                if (!isSeeking) {
+                    progressBar.value = progress.totalTimeMs > 0 ? (progress.currentTimeMs / progress.totalTimeMs) * 1000 : 0;
+                }
+                totalDurationMsForSeek = progress.totalTimeMs;
+                timeProgress.textContent = `${formatTime(progress.currentTimeMs)} / ${formatTime(progress.totalTimeMs)}`;
+                noteProgress.textContent = `${progress.playedNotes} / ${progress.totalNotes}`;
             },
             onMute: (currentActiveIds) => {
                 const allPlayingDivs = nowPlayingOutput.querySelectorAll('.playing-instrument');
                 allPlayingDivs.forEach(div => {
                     const instId = div.id.split('-')[1];
                     let isMuted = true;
-                    for (const track of tracksData) {
+                    for (const track of currentTracksData) {
                         if (track.instrument.id == instId && currentActiveIds.has(track.trackId)) {
                             isMuted = false;
                             break;

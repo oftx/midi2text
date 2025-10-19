@@ -30,11 +30,19 @@
     </article>
 
     <article id="now-playing-zone" class="container" hidden>
-        <hgroup>
-            <h2>正在播放...</h2>
-            <div id="now-playing-output"></div>
-        </hgroup>
-        <button id="stop-button">停止播放</button>
+        <div class="playback-controls">
+            <button id="play-pause-button" class="play-pause-button">▶️</button>
+            <div class="progress-display">
+                <div class="progress-bar-container">
+                    <input type="range" id="progress-bar" min="0" max="1000" value="0">
+                </div>
+                <div class="progress-text-container">
+                    <span id="time-progress">00:00 / 00:00</span>
+                    <span id="note-progress">0 / 0</span>
+                </div>
+            </div>
+        </div>
+        <div id="now-playing-output"></div>
     </article>
     
     <div id="results-container" hidden>
@@ -49,7 +57,6 @@
                 <button id="play-all-button" class="outline">全部播放</button>
             </div>
         </div>
-        <!-- NEW: Track Selection Controls -->
         <div class="track-selection-controls">
             <button id="select-all-tracks" class="outline secondary">全选</button>
             <button id="invert-selection-tracks" class="outline secondary">反选</button>
@@ -57,7 +64,6 @@
         <div id="results-output"></div>
     </div>
 
-    <!-- ... (footer and other elements remain the same) ... -->
     <footer>
       <hr>
       <small>

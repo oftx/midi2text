@@ -1,3 +1,5 @@
+// File: /midi2text/js/main.js (Updated)
+
 document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
@@ -8,15 +10,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const playAllButton = document.getElementById('play-all-button');
     const nowPlayingZone = document.getElementById('now-playing-zone');
     const nowPlayingOutput = document.getElementById('now-playing-output');
-    const stopButton = document.getElementById('stop-button');
     const sendToPlayerButton = document.getElementById('send-to-player-button');
     const selectAllTracksButton = document.getElementById('select-all-tracks');
     const invertSelectionTracksButton = document.getElementById('invert-selection-tracks');
+    const playPauseButton = document.getElementById('play-pause-button');
+    const progressBar = document.getElementById('progress-bar');
+    const timeProgress = document.getElementById('time-progress');
+    const noteProgress = document.getElementById('note-progress');
 
     let polyphonicResult = null;
     let monophonicResult = null;
     let currentResult = null;
     const activeNotes = new Map();
+    let isSeeking = false;
+    let currentTracksData = [];
+    let totalDurationMsForSeek = 0;
+
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
 
     function updatePlayerForSelectionChange() {
         const activeIds = new Set();
@@ -25,21 +40,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         SimpleNotePlayer.updateActiveTracks(activeIds);
     }
+    
+    playPauseButton.addEventListener('click', () => {
+        const state = SimpleNotePlayer.getPlaybackState();
+        if (state.isPaused) {
+            SimpleNotePlayer.resume();
+            playPauseButton.textContent = '⏸️';
+        } else if (state.isPlaying) {
+            SimpleNotePlayer.pause();
+            playPauseButton.textContent = '▶️';
+        }
+    });
+
+    progressBar.addEventListener('mousedown', () => isSeeking = true);
+    progressBar.addEventListener('mouseup', () => isSeeking = false);
+    progressBar.addEventListener('input', () => {
+        if (!isSeeking) return;
+        const progress = progressBar.value / 1000;
+        const targetTimeMs = totalDurationMsForSeek * progress;
+        SimpleNotePlayer.seek(targetTimeMs);
+    });
 
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) handleFile(e.target.files[0]);
     });
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
-    });
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]); });
 
     switcherOptions.forEach(option => {
         option.addEventListener('click', (e) => {
@@ -67,22 +95,15 @@ document.addEventListener('DOMContentLoaded', () => {
             currentResult[instrumentName].forEach(track => {
                 const trackId = `${instrumentName}-${track.track_name}`;
                 allTracksData.push({
-                    instrument: {
-                        name: instrumentName,
-                        waveform: 'triangle'
-                    },
+                    instrument: { name: instrumentName, waveform: 'triangle' },
                     trackName: track.track_name,
                     notesString: track.notes_string,
                     trackId: trackId
                 });
             });
         }
-        startPlayback(allTracksData, activeTrackIds);
-    });
-
-    stopButton.addEventListener('click', () => {
-        SimpleNotePlayer.stop();
-        endPlayback();
+        currentTracksData = allTracksData;
+        startPlayback(currentTracksData, activeTrackIds);
     });
 
     sendToPlayerButton.addEventListener('click', () => {
@@ -106,10 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         }
-        const dataForPlayer = {
-            instruments,
-            tracks
-        };
+        const dataForPlayer = { instruments, tracks };
         sessionStorage.setItem('midiConversionData', JSON.stringify(dataForPlayer));
         window.location.href = 'player.html';
     });
@@ -131,14 +149,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function handleFile(file) {
-        if (!wasmReady) {
-            statusDiv.textContent = '错误：Wasm 模块仍在加载中...';
-            return;
-        }
-        if (!file.type.includes('midi') && !file.name.endsWith('.mid')) {
-            statusDiv.textContent = '错误：请上传有效的 MIDI 文件';
-            return;
-        }
+        SimpleNotePlayer.stop();
+        endPlayback();
+        if (!wasmReady) { statusDiv.textContent = '错误：Wasm 模块仍在加载中...'; return; }
+        if (!file.type.includes('midi') && !file.name.endsWith('.mid')) { statusDiv.textContent = '错误：请上传有效的 MIDI 文件'; return; }
         statusDiv.textContent = `正在处理: ${file.name}...`;
         resultsContainer.hidden = true;
         const reader = new FileReader();
@@ -147,33 +161,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const byteArray = new Uint8Array(e.target.result);
                 FS.writeFile('/input.midi', byteArray);
                 Module._midicsv();
-                const csvData = FS.readFile('/output.csv', {
-                    encoding: 'utf8'
-                });
-                polyphonicResult = SimpleScoreGenerator.generate(csvData, {
-                    monophonic_mode: false
-                });
-                monophonicResult = SimpleScoreGenerator.generate(csvData, {
-                    monophonic_mode: true
-                });
+                const csvData = FS.readFile('/output.csv', { encoding: 'utf8' });
+                polyphonicResult = SimpleScoreGenerator.generate(csvData, { monophonic_mode: false });
+                monophonicResult = SimpleScoreGenerator.generate(csvData, { monophonic_mode: true });
                 document.querySelector('.switcher-option[data-mode="poly"]').classList.remove('active');
                 document.querySelector('.switcher-option[data-mode="mono"]').classList.add('active');
                 currentResult = monophonicResult;
                 displayResults(currentResult);
                 statusDiv.textContent = '处理完成！';
-            } catch (error) {
-                console.error('转换失败:', error);
-                statusDiv.textContent = `处理失败: ${error.message}`;
-            }
+            } catch (error) { console.error('转换失败:', error); statusDiv.textContent = `处理失败: ${error.message}`; }
         };
-        reader.onerror = () => {
-            statusDiv.textContent = '读取文件失败。';
-        };
+        reader.onerror = () => { statusDiv.textContent = '读取文件失败。'; };
         reader.readAsArrayBuffer(file);
     }
 
     function displayResults(resultData) {
-        resultsOutput.innerHTML = '';
+        resultsOutput.innerHTML = ''; 
         if (!resultData || resultData.error) {
             resultsOutput.innerHTML = `<p>${resultData ? resultData.error : '无数据'}</p>`;
             resultsContainer.hidden = false;
@@ -205,22 +208,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="track-meta">
                         <span>音符数: ${track.note_count}</span>
                         <span>时长: ${durationInSeconds}s</span>
-                    </div>
-                `;
+                    </div>`;
                 trackHeader.appendChild(trackInfo);
                 const playButton = document.createElement('button');
                 playButton.className = 'track-play-button';
                 playButton.textContent = '▶';
                 playButton.onclick = () => {
                     const singleTrackData = [{
-                        instrument: {
-                            name: instrumentName,
-                            waveform: 'triangle'
-                        },
+                        instrument: { name: instrumentName, waveform: 'triangle' },
                         trackName: track.track_name,
                         notesString: track.notes_string,
                         trackId: trackId
                     }];
+                    currentTracksData = singleTrackData;
                     startPlayback(singleTrackData, new Set([trackId]));
                 };
                 trackHeader.appendChild(playButton);
@@ -241,15 +241,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function startPlayback(tracksData, activeTrackIds) {
         dropZone.hidden = true;
         nowPlayingZone.hidden = false;
+        playPauseButton.textContent = '⏸️';
         nowPlayingOutput.innerHTML = '';
         activeNotes.clear();
+        
         const uniqueInstruments = new Map();
         tracksData.forEach(track => {
-            const instrumentKey = track.instrument.name;
-            if (!uniqueInstruments.has(instrumentKey)) {
-                uniqueInstruments.set(instrumentKey, track.instrument);
+            if (activeTrackIds.has(track.trackId) && !uniqueInstruments.has(track.instrument.name)) {
+                uniqueInstruments.set(track.instrument.name, track.instrument);
             }
         });
+        
         uniqueInstruments.forEach(inst => {
             const instDiv = document.createElement('div');
             instDiv.className = 'playing-instrument';
@@ -258,26 +260,27 @@ document.addEventListener('DOMContentLoaded', () => {
             nowPlayingOutput.appendChild(instDiv);
             activeNotes.set(inst.name, new Set());
         });
+
         SimpleNotePlayer.play(tracksData, {
             onNoteOn: (instrument, trackName, noteName) => {
                 const notesSet = activeNotes.get(instrument.name);
-                if (notesSet) {
-                    notesSet.add(noteName);
-                    updateNowPlayingDisplay(instrument);
-                }
+                if (notesSet) { notesSet.add(noteName); updateNowPlayingDisplay(instrument); }
             },
             onNoteOff: (instrument, trackName, noteName) => {
                 const notesSet = activeNotes.get(instrument.name);
-                if (notesSet) {
-                    notesSet.delete(noteName);
-                    updateNowPlayingDisplay(instrument);
-                }
+                if (notesSet) { notesSet.delete(noteName); updateNowPlayingDisplay(instrument); }
             },
             onPlaybackEnd: () => {
                 nowPlayingOutput.innerHTML = '<h4>播放完成！</h4>';
-                setTimeout(() => {
-                    endPlayback();
-                }, 1000);
+                setTimeout(() => { endPlayback(); }, 1000);
+            },
+            onProgressUpdate: (progress) => {
+                if (!isSeeking) {
+                    progressBar.value = progress.totalTimeMs > 0 ? (progress.currentTimeMs / progress.totalTimeMs) * 1000 : 0;
+                }
+                totalDurationMsForSeek = progress.totalTimeMs;
+                timeProgress.textContent = `${formatTime(progress.currentTimeMs)} / ${formatTime(progress.totalTimeMs)}`;
+                noteProgress.textContent = `${progress.playedNotes} / ${progress.totalNotes}`;
             },
             onMute: (activeIds) => {}
         }, activeTrackIds);
@@ -296,5 +299,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function endPlayback() {
         dropZone.hidden = false;
         nowPlayingZone.hidden = true;
+        progressBar.value = 0;
+        timeProgress.textContent = '00:00 / 00:00';
+        noteProgress.textContent = '0 / 0';
     }
 });

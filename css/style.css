@@ -322,3 +322,107 @@ footer small a:hover {
     height: 1.2rem;
     margin-right: 0.5rem;
 }
+
+/* File: /midi2text/css/style.css (Updated) */
+
+/* ... (之前的样式保持不变) ... */
+
+/* --- Player Page Layout Optimizations --- */
+#now-playing-zone {
+    padding: 0.75rem 1rem;
+    min-height: auto;
+    margin-bottom: 1rem;
+}
+#now-playing-zone .playing-instrument {
+    font-size: 0.9em;
+    margin-bottom: 0.25rem;
+}
+#now-playing-zone .playing-instrument-name {
+    margin-right: 0.75rem;
+}
+.track-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+.track-controls label {
+    margin-bottom: 0;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.track-controls select {
+    margin-bottom: 0;
+    font-size: 0.9em;
+    flex-grow: 1;
+}
+.track-controls .track-delete-button {
+    margin-left: auto;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.8em;
+    --pico-font-size: 0.8em;
+}
+#tracks-container textarea {
+    font-size: 0.9em;
+}
+
+/* --- Track Selection Controls --- */
+.track-selection-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0 1rem;
+}
+.track-header .track-checkbox,
+.track-controls .track-checkbox {
+    margin: 0;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-right: 0.5rem;
+}
+
+/* --- NEW: Playback Progress Bar Styles --- */
+.playback-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1rem;
+}
+
+.play-pause-button {
+    padding: 0.5rem;
+    width: 50px;
+    height: 50px;
+    font-size: 1.5em;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.progress-display {
+    flex-grow: 1;
+}
+
+.progress-bar-container {
+    width: 100%;
+}
+
+.progress-bar-container input[type="range"] {
+    margin: 0;
+    padding: 0;
+    height: 8px;
+}
+
+.progress-text-container {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85em;
+    color: var(--muted-color);
+    margin-top: 0.25rem;
+    font-family: var(--font-mono);
+}
+
+.controls-right {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--pico-form-element-spacing-horizontal);
+}

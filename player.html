@@ -19,35 +19,43 @@
     </nav>
 
     <article id="now-playing-zone" class="container" hidden>
-      <div id="now-playing-output"></div>
+        <div class="playback-controls">
+            <button id="play-pause-button" class="play-pause-button">▶️</button>
+            <div class="progress-display">
+                <div class="progress-bar-container">
+                    <input type="range" id="progress-bar" min="0" max="1000" value="0">
+                </div>
+                <div class="progress-text-container">
+                    <span id="time-progress">00:00 / 00:00</span>
+                    <span id="note-progress">0 / 0</span>
+                </div>
+            </div>
+        </div>
+        <div id="now-playing-output"></div>
     </article>
 
     <article id="controls-zone">
       <div class="grid">
         <div>
           <button id="play-all-button">▶️ 全部播放</button>
-          <button id="stop-button" class="secondary outline">⏹️ 停止</button>
         </div>
-        <div>
+        <div class="controls-right">
           <button id="manage-instruments-button" class="contrast outline">🎹 管理乐器</button>
           <button id="add-track-button" class="contrast">➕ 新增轨道</button>
         </div>
       </div>
     </article>
     
-    <!-- NEW: Track Selection Controls -->
     <div class="track-selection-controls">
         <button id="select-all-tracks" class="outline secondary">全选</button>
         <button id="invert-selection-tracks" class="outline secondary">反选</button>
     </div>
 
     <div id="tracks-container">
-      <!-- Tracks will be dynamically added here -->
     </div>
     
   </main>
 
-  <!-- ... (dialog, toast, and script tags remain the same) ... -->
   <dialog id="instrument-modal">
     <article>
       <header>
