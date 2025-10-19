@@ -1,4 +1,3 @@
-/* 全局布局和间距 */
 body {
     padding-bottom: 4rem;
 }
@@ -8,27 +7,25 @@ main.container > div {
     margin-top: 2.5rem;
 }
 
-/* 拖放区域样式 */
 #drop-zone {
-  border: 2px dashed var(--secondary);
-  padding: 2rem;
-  text-align: center;
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    border: 2px dashed var(--secondary);
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
 }
 
 #drop-zone.dragover {
-  background-color: var(--secondary-hover);
-  border-color: var(--primary);
+    background-color: var(--secondary-hover);
+    border-color: var(--primary);
 }
 
 #status {
-  margin-top: 1rem;
-  font-style: italic;
-  color: var(--muted-color);
+    margin-top: 1rem;
+    font-style: italic;
+    color: var(--muted-color);
 }
 
-/* --- 结果区域样式优化 --- */
 .results-header {
     display: flex;
     justify-content: space-between;
@@ -42,7 +39,6 @@ main.container > div {
     margin: 0;
 }
 
-/* --- 新增：自定义切换器样式 --- */
 .custom-switcher {
     display: inline-flex;
     border: 1px solid hsl(215, 15%, 25%);
@@ -73,8 +69,6 @@ main.container > div {
     background-color: var(--primary-focus);
     color: var(--primary-inverse);
 }
-/* --- 结束：自定义切换器样式 --- */
-
 
 .instrument-block {
     margin-bottom: 2rem;
@@ -92,8 +86,8 @@ main.container > div {
 
 .track-header {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
+    gap: 1rem;
     background-color: var(--card-background-color);
     padding: 0.75rem 1rem;
     border-radius: var(--border-radius) var(--border-radius) 0 0;
@@ -163,19 +157,16 @@ footer small a:hover {
     padding-bottom: 0.6rem;
 }
 
-.track-header {
-    /* ... (之前的样式) ... */
-    gap: 1rem; /* 为播放按钮留出空间 */
-}
-
 .track-play-button {
     --pico-font-size: 0.8em;
     padding: 0.2rem 0.6rem;
-    margin-left: auto; /* 将按钮推到最右边 */
+    margin-left: auto;
 }
 
 #now-playing-zone {
-    text-align: center;
+    padding: 0.75rem 1rem;
+    min-height: auto;
+    margin-bottom: 1rem;
 }
 
 #now-playing-output {
@@ -187,55 +178,26 @@ footer small a:hover {
     margin-bottom: 1rem;
 }
 
+#now-playing-zone .playing-instrument,
 .playing-instrument {
-    margin-bottom: 0.5rem;
+    font-size: 0.9em;
+    margin-bottom: 0.25rem;
+    text-align: left;
 }
+
+#now-playing-zone .playing-instrument-name,
 .playing-instrument-name {
     font-weight: bold;
-    margin-right: 0.5rem;
+    margin-right: 0.75rem;
     color: var(--primary);
 }
+
 .playing-notes {
     display: inline-block;
     min-width: 100px;
     text-align: left;
 }
 
-.track-play-button {
-    --pico-font-size: 0.8em;
-    padding: 0.2rem 0.6rem;
-    margin-left: auto; /* 将按钮推到最右边 */
-}
-
-#now-playing-zone {
-    text-align: center;
-}
-
-#now-playing-output {
-    min-height: 100px;
-    background: var(--card-background-color);
-    border: 1px solid var(--card-border-color);
-    border-radius: var(--border-radius);
-    padding: 1rem;
-    margin-bottom: 1rem;
-}
-
-.playing-instrument {
-    margin-bottom: 0.5rem;
-}
-.playing-instrument-name {
-    font-weight: bold;
-    margin-right: 0.5rem;
-    color: var(--primary);
-}
-.playing-notes {
-    display: inline-block;
-    min-width: 100px;
-    text-align: left;
-}
-
-
-/* --- 新增：Toast 提示样式 --- */
 .toast-notification {
     position: fixed;
     top: 20px;
@@ -259,23 +221,6 @@ footer small a:hover {
     visibility: visible;
 }
 
-/* --- NEW: Player Page Layout Optimizations --- */
-
-/* Smaller "Now Playing" zone */
-#now-playing-zone {
-    padding: 0.75rem 1rem;
-    min-height: auto;
-    margin-bottom: 1rem;
-}
-#now-playing-zone .playing-instrument {
-    font-size: 0.9em;
-    margin-bottom: 0.25rem;
-}
-#now-playing-zone .playing-instrument-name {
-    margin-right: 0.75rem;
-}
-
-/* Compact Track Header */
 .track-controls {
     display: flex;
     align-items: center;
@@ -289,90 +234,30 @@ footer small a:hover {
     white-space: nowrap;
 }
 
-.track-controls select {
-    margin-bottom: 0;
-    font-size: 0.9em;
-    flex-grow: 1; /* Allow select to take available space */
-}
-
-.track-controls .track-delete-button {
-    margin-left: auto; /* Push delete button to the right */
-    padding: 0.2rem 0.6rem;
-    font-size: 0.8em;
-    --pico-font-size: 0.8em;
-}
-
-/* General smaller font for player textareas */
-#tracks-container textarea {
-    font-size: 0.9em;
-}
-
-/* --- NEW: Track Selection Controls --- */
-.track-selection-controls {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    padding: 0 1rem;
-}
-
-.track-header .track-checkbox,
-.track-controls .track-checkbox {
-    margin: 0;
-    width: 1.2rem;
-    height: 1.2rem;
-    margin-right: 0.5rem;
-}
-
-/* File: /midi2text/css/style.css (Updated) */
-
-/* ... (之前的样式保持不变) ... */
-
-/* --- Player Page Layout Optimizations --- */
-#now-playing-zone {
-    padding: 0.75rem 1rem;
-    min-height: auto;
-    margin-bottom: 1rem;
-}
-#now-playing-zone .playing-instrument {
-    font-size: 0.9em;
-    margin-bottom: 0.25rem;
-}
-#now-playing-zone .playing-instrument-name {
-    margin-right: 0.75rem;
-}
-.track-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.75rem;
-}
-.track-controls label {
-    margin-bottom: 0;
-    font-size: 0.9em;
-    white-space: nowrap;
-}
 .track-controls select {
     margin-bottom: 0;
     font-size: 0.9em;
     flex-grow: 1;
 }
+
 .track-controls .track-delete-button {
     margin-left: auto;
     padding: 0.2rem 0.6rem;
     font-size: 0.8em;
     --pico-font-size: 0.8em;
 }
+
 #tracks-container textarea {
     font-size: 0.9em;
 }
 
-/* --- Track Selection Controls --- */
 .track-selection-controls {
     display: flex;
     gap: 1rem;
     margin-bottom: 1rem;
     padding: 0 1rem;
 }
+
 .track-header .track-checkbox,
 .track-controls .track-checkbox {
     margin: 0;
@@ -381,7 +266,6 @@ footer small a:hover {
     margin-right: 0.5rem;
 }
 
-/* --- NEW: Playback Progress Bar Styles --- */
 .playback-controls {
     display: flex;
     align-items: center;
@@ -427,18 +311,6 @@ footer small a:hover {
     gap: var(--pico-form-element-spacing-horizontal);
 }
 
-/* File: /midi2text/css/style.css (Updated) */
-
-/* ... (所有之前的样式保持不变) ... */
-
-/* --- Right-align control buttons --- */
-.controls-right {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--pico-form-element-spacing-horizontal);
-}
-
-/* --- NEW: Transpose Controls Styles --- */
 .transpose-controls {
     display: flex;
     align-items: center;
