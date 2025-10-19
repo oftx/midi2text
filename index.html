@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,15 +25,14 @@
     </article>
     
     <div id="results-container" hidden>
-        <header class="results-header">
+        <div class="results-header">
             <h3>转换结果</h3>
-            <fieldset role="group">
-              <input type="radio" id="mode-poly" name="mode-switcher" value="poly" checked>
-              <label for="mode-poly">复调 (更多轨道)</label>
-              <input type="radio" id="mode-mono" name="mode-switcher" value="mono">
-              <label for="mode-mono">单音优先 (更少轨道)</label>
-            </fieldset>
-        </header>
+            <!-- 使用自定义切换器替换 fieldset -->
+            <div class="custom-switcher">
+              <a href="#" class="switcher-option" data-mode="poly">复调 (更多轨道)</a>
+              <a href="#" class="switcher-option active" data-mode="mono">单音优先 (更少轨道)</a>
+            </div>
+        </div>
         <div id="results-output"></div>
     </div>
 

@@ -1,3 +1,14 @@
+/* 全局布局和间距 */
+body {
+    padding-bottom: 4rem;
+}
+
+main.container > article,
+main.container > div {
+    margin-top: 2.5rem;
+}
+
+/* 拖放区域样式 */
 #drop-zone {
   border: 2px dashed var(--secondary);
   padding: 2rem;
@@ -17,21 +28,62 @@
   color: var(--muted-color);
 }
 
-#results-container {
-    margin-top: 2rem;
-}
-
+/* --- 结果区域样式优化 --- */
 .results-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 }
+
+.results-header h3 {
+    margin: 0;
+}
+
+/* --- 新增：自定义切换器样式 --- */
+.custom-switcher {
+    display: inline-flex;
+    border: 1px solid hsl(215, 15%, 25%);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    background-color: hsl(220, 15%, 15%);
+    font-size: 0.9em;
+}
+
+.switcher-option {
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+    color: var(--muted-color);
+    text-decoration: none;
+    transition: background-color 0.2s, color 0.2s;
+    white-space: nowrap;
+}
+
+.switcher-option + .switcher-option {
+    border-left: 1px solid hsl(215, 15%, 25%);
+}
+
+.switcher-option:not(.active):hover {
+    background-color: hsl(220, 15%, 20%);
+}
+
+.switcher-option.active {
+    background-color: var(--primary-focus);
+    color: var(--primary-inverse);
+}
+/* --- 结束：自定义切换器样式 --- */
+
 
 .instrument-block {
     margin-bottom: 2rem;
-    border-left: 3px solid var(--primary);
-    padding-left: 1rem;
+}
+
+.instrument-block h4 {
+    border-bottom: 2px solid var(--primary-focus);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
 }
 
 .track-block {
@@ -41,9 +93,9 @@
 .track-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: baseline;
     background-color: var(--card-background-color);
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
     border-radius: var(--border-radius) var(--border-radius) 0 0;
     border: 1px solid var(--card-border-color);
     border-bottom: none;
@@ -59,17 +111,17 @@
 }
 
 .track-meta span {
-    margin-left: 1rem;
+    margin-left: 1.5rem;
 }
 
 .track-textarea {
     width: 100%;
-    height: 150px; /* 固定高度 */
-    overflow-y: auto; /* 垂直滚动条 */
-    resize: vertical; /* 允许用户垂直调整大小 */
+    height: 150px;
+    resize: vertical;
     font-family: var(--font-mono);
     font-size: 0.9em;
     padding: 1rem;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
+    background-color: var(--card-background-color);
 }

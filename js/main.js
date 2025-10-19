@@ -4,9 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusDiv = document.getElementById('status');
     const resultsContainer = document.getElementById('results-container');
     const resultsOutput = document.getElementById('results-output');
-    const modeSwitcher = document.querySelectorAll('input[name="mode-switcher"]');
+    const switcherOptions = document.querySelectorAll('.switcher-option');
 
-    // 全局变量，用于存储两种模式的转换结果
     let polyphonicResult = null;
     let monophonicResult = null;
 
@@ -29,13 +28,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
     });
 
-    modeSwitcher.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.value === 'poly') {
-                displayResults(polyphonicResult);
-            } else {
-                displayResults(monophonicResult);
-            }
+    // 更新事件监听器以适应新的切换器
+    switcherOptions.forEach(option => {
+        option.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (e.currentTarget.classList.contains('active')) return;
+
+            switcherOptions.forEach(opt => opt.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+
+            const selectedMode = e.currentTarget.getAttribute('data-mode');
+            displayResults(selectedMode === 'poly' ? polyphonicResult : monophonicResult);
         });
     });
 
@@ -62,13 +65,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 Module._midicsv();
                 const csvData = FS.readFile('/output.csv', { encoding: 'utf8' });
                 
-                // **同时生成两种模式的结果**
                 polyphonicResult = SimpleScoreGenerator.generate(csvData, { monophonic_mode: false });
                 monophonicResult = SimpleScoreGenerator.generate(csvData, { monophonic_mode: true });
                 
-                // 默认显示复调模式
-                document.getElementById('mode-poly').checked = true;
-                displayResults(polyphonicResult);
+                // **设置默认显示为单音优先模式**
+                document.querySelector('.switcher-option[data-mode="poly"]').classList.remove('active');
+                document.querySelector('.switcher-option[data-mode="mono"]').classList.add('active');
+                displayResults(monophonicResult);
 
                 statusDiv.textContent = '处理完成！';
 
