@@ -125,3 +125,78 @@ main.container > div {
     border-top-right-radius: 0;
     background-color: var(--card-background-color);
 }
+
+footer {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--card-border-color);
+}
+
+footer small {
+    color: var(--muted-color);
+    line-height: 1.6;
+}
+
+footer small p {
+    margin-bottom: 0.75rem;
+}
+
+footer small a {
+    color: var(--secondary);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+}
+
+footer small a:hover {
+    color: var(--primary);
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+#play-all-button {
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+}
+
+.track-header {
+    /* ... (之前的样式) ... */
+    gap: 1rem; /* 为播放按钮留出空间 */
+}
+
+.track-play-button {
+    --pico-font-size: 0.8em;
+    padding: 0.2rem 0.6rem;
+    margin-left: auto; /* 将按钮推到最右边 */
+}
+
+#now-playing-zone {
+    text-align: center;
+}
+
+#now-playing-output {
+    min-height: 100px;
+    background: var(--card-background-color);
+    border: 1px solid var(--card-border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.playing-instrument {
+    margin-bottom: 0.5rem;
+}
+.playing-instrument-name {
+    font-weight: bold;
+    margin-right: 0.5rem;
+    color: var(--primary);
+}
+.playing-notes {
+    display: inline-block;
+    min-width: 100px;
+    text-align: left;
+}

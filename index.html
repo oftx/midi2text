@@ -13,6 +13,9 @@
       <ul>
         <li><strong>MIDI to Simple Score Converter</strong></li>
       </ul>
+      <ul>
+        <li><a href="player.html" role="button" class="secondary outline">Go to Score Player</a></li>
+      </ul>
     </nav>
 
     <article id="drop-zone">
@@ -23,18 +26,56 @@
       <div id="status">正在加载核心转换模块...</div>
       <input type="file" id="file-input" accept=".mid,.midi" hidden>
     </article>
+
+    <article id="now-playing-zone" class="container" hidden>
+        <hgroup>
+            <h2>正在播放...</h2>
+            <div id="now-playing-output"></div>
+        </hgroup>
+        <button id="stop-button">停止播放</button>
+    </article>
     
     <div id="results-container" hidden>
         <div class="results-header">
             <h3>转换结果</h3>
-            <!-- 使用自定义切换器替换 fieldset -->
-            <div class="custom-switcher">
-              <a href="#" class="switcher-option" data-mode="poly">复调 (更多轨道)</a>
-              <a href="#" class="switcher-option active" data-mode="mono">单音优先 (更少轨道)</a>
+            <div class="header-controls">
+                <div class="custom-switcher">
+                  <a href="#" class="switcher-option" data-mode="poly">复调 (更多轨道)</a>
+                  <a href="#" class="switcher-option active" data-mode="mono">单音优先 (更少轨道)</a>
+                </div>
+                <button id="play-all-button" class="outline">全部播放</button>
             </div>
         </div>
         <div id="results-output"></div>
     </div>
+
+    <footer>
+      <hr>
+      <small>
+        <p>
+          本网页应用的核心转换功能基于 
+          <a href="https://github.com/metavee/midi2csv" target="_blank">metavee/midi2csv</a> 
+          项目，该项目使用 
+          <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank">GPL-3.0</a> 
+          许可证。
+        </p>
+        <p>
+          <code>midi2csv</code> 项目本身是 John Walker 创作的原始 
+          <a href="https://www.fourmilab.ch/webtools/midicsv/" target="_blank">midicsv</a> 
+          工具的 WebAssembly 移植版，原始代码属于公共领域 (Public Domain)。
+        </p>
+        <p>
+          网页界面样式使用了 
+          <a href="https://picocss.com/" target="_blank">Pico.css</a>，
+          它基于 
+          <a href="https://opensource.org/licenses/MIT" target="_blank">MIT</a> 
+          许可证。
+        </p>
+        <p>
+          本网页的用户界面、简单乐谱格式转换逻辑及音频播放器代码是在此基础上编写的。
+        </p>
+      </small>
+    </footer>
 
   </main>
 
@@ -42,18 +83,15 @@
     var wasmReady = false;
     var Module = {
       onRuntimeInitialized: function() {
-        console.log('WebAssembly module loaded and ready.');
         wasmReady = true;
-        const statusDiv = document.getElementById('status');
-        if (statusDiv) {
-            statusDiv.textContent = '准备就绪，请选择文件。';
-        }
+        document.getElementById('status').textContent = '准备就绪，请选择文件。';
       }
     };
   </script>
 
   <script src="js/csvmidi.js"></script>
   <script src="js/csv_to_simple_score.js"></script>
+  <script src="js/simple_note_player.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

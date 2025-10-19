@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简单乐谱播放器</title>
+  <link rel="stylesheet" href="css/pico.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul>
+        <li><a href="index.html" class="secondary">返回 MIDI 转换器</a></li>
+        <li><strong>简单乐谱播放器</strong></li>
+      </ul>
+    </nav>
+
+    <article id="controls-zone">
+      <div class="grid">
+        <div>
+          <button id="play-all-button">▶️ 全部播放</button>
+          <button id="stop-button" class="secondary outline">⏹️ 停止</button>
+        </div>
+        <div>
+          <button id="manage-instruments-button" class="contrast outline">🎹 管理乐器</button>
+          <button id="add-track-button" class="contrast">➕ 新增轨道</button>
+        </div>
+      </div>
+    </article>
+    
+    <div id="tracks-container">
+      <!-- 轨道将通过 JavaScript 动态添加到这里 -->
+    </div>
+    
+    <article id="now-playing-zone" class="container" hidden>
+        <hgroup>
+            <h2>正在播放...</h2>
+            <div id="now-playing-output"></div>
+        </hgroup>
+    </article>
+    
+  </main>
+
+  <!-- 乐器管理弹窗 -->
+  <dialog id="instrument-modal">
+    <article>
+      <header>
+        <a href="#close" aria-label="Close" class="close" id="close-modal-button"></a>
+        <h4>管理数字乐器</h4>
+      </header>
+      <div id="instrument-list">
+        <!-- 现有乐器列表 -->
+      </div>
+      <form id="add-instrument-form">
+        <h5>添加新乐器</h5>
+        <div class="grid">
+          <input type="text" id="instrument-name-input" placeholder="乐器名称 (例如: 明亮主音)" required>
+          <select id="instrument-waveform-select" required>
+            <option value="sine">正弦波 (柔和)</option>
+            <option value="triangle" selected>三角波 (圆润)</option>
+            <option value="square">方波 (复古/芯片)</option>
+            <option value="sawtooth">锯齿波 (锐利)</option>
+          </select>
+        </div>
+        <button type="submit">添加乐器</button>
+      </form>
+    </article>
+  </dialog>
+
+  <script src="js/simple_note_player.js"></script>
+  <script src="js/player_main.js"></script>
+</body>
+</html>
