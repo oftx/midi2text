@@ -426,3 +426,63 @@ footer small a:hover {
     justify-content: flex-end;
     gap: var(--pico-form-element-spacing-horizontal);
 }
+
+/* File: /midi2text/css/style.css (Updated) */
+
+/* ... (所有之前的样式保持不变) ... */
+
+/* --- Right-align control buttons --- */
+.controls-right {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--pico-form-element-spacing-horizontal);
+}
+
+/* --- NEW: Transpose Controls Styles --- */
+.transpose-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    background-color: var(--card-background-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    border: 1px solid var(--card-border-color);
+}
+
+.transpose-controls fieldset {
+    margin-bottom: 0;
+    padding: 0;
+    border: none;
+}
+
+.transpose-controls label {
+    margin-right: 0.5rem;
+    font-size: 0.9em;
+}
+
+.transpose-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-grow: 1;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.transpose-slider-container.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.transpose-slider-container input[type="range"] {
+    margin-bottom: 0;
+    flex-grow: 1;
+}
+
+.transpose-value {
+    font-family: var(--font-mono);
+    font-size: 1em;
+    font-weight: bold;
+    width: 3ch;
+    text-align: center;
+}

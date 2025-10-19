@@ -17,6 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('progress-bar');
     const timeProgress = document.getElementById('time-progress');
     const noteProgress = document.getElementById('note-progress');
+    const transposeControls = document.querySelector('.transpose-controls');
+    const transposeEnabledCheckbox = document.getElementById('transpose-enabled');
+    const transposeSliderContainer = document.querySelector('.transpose-slider-container');
+    const transposeSlider = document.getElementById('transpose-slider');
+    const transposeValue = document.getElementById('transpose-value');
 
     let polyphonicResult = null;
     let monophonicResult = null;
@@ -59,6 +64,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const progress = progressBar.value / 1000;
         const targetTimeMs = totalDurationMsForSeek * progress;
         SimpleNotePlayer.seek(targetTimeMs);
+    });
+    
+    transposeEnabledCheckbox.addEventListener('change', () => {
+        const isEnabled = transposeEnabledCheckbox.checked;
+        transposeSliderContainer.classList.toggle('disabled', !isEnabled);
+        if (!isEnabled) {
+            transposeSlider.value = 0;
+            transposeValue.textContent = '0';
+            SimpleNotePlayer.setTranspose(0);
+        } else {
+            const semitones = parseInt(transposeSlider.value, 10);
+            SimpleNotePlayer.setTranspose(semitones);
+        }
+    });
+
+    transposeSlider.addEventListener('input', () => {
+        const semitones = parseInt(transposeSlider.value, 10);
+        transposeValue.textContent = semitones > 0 ? `+${semitones}` : semitones;
+        SimpleNotePlayer.setTranspose(semitones);
     });
 
     dropZone.addEventListener('click', () => fileInput.click());
@@ -155,6 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!file.type.includes('midi') && !file.name.endsWith('.mid')) { statusDiv.textContent = '错误：请上传有效的 MIDI 文件'; return; }
         statusDiv.textContent = `正在处理: ${file.name}...`;
         resultsContainer.hidden = true;
+        transposeControls.hidden = true;
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -181,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsOutput.innerHTML = `<p>${resultData ? resultData.error : '无数据'}</p>`;
             resultsContainer.hidden = false;
             sendToPlayerButton.hidden = true;
+            transposeControls.hidden = true;
             return;
         }
         for (const instrumentName in resultData) {
@@ -236,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         resultsContainer.hidden = false;
         sendToPlayerButton.hidden = false;
+        transposeControls.hidden = false;
     }
 
     function startPlayback(tracksData, activeTrackIds) {
@@ -260,6 +287,12 @@ document.addEventListener('DOMContentLoaded', () => {
             nowPlayingOutput.appendChild(instDiv);
             activeNotes.set(inst.name, new Set());
         });
+        
+        if (transposeEnabledCheckbox.checked) {
+            SimpleNotePlayer.setTranspose(parseInt(transposeSlider.value, 10));
+        } else {
+            SimpleNotePlayer.setTranspose(0);
+        }
 
         SimpleNotePlayer.play(tracksData, {
             onNoteOn: (instrument, trackName, noteName) => {
@@ -272,6 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             onPlaybackEnd: () => {
                 nowPlayingOutput.innerHTML = '<h4>播放完成！</h4>';
+                playPauseButton.textContent = '▶️';
                 setTimeout(() => { endPlayback(); }, 1000);
             },
             onProgressUpdate: (progress) => {

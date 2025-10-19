@@ -7,6 +7,7 @@ const SimpleNotePlayer = (() => {
     
     let isPlaying = false;
     let isPaused = false;
+    let transposeOffset = 0;
 
     const NOTE_TO_MIDI = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 };
 
@@ -56,7 +57,7 @@ const SimpleNotePlayer = (() => {
 
     function midiToFreq(midi) {
         if (midi === null) return 0;
-        return 440 * Math.pow(2, (midi - 69) / 12);
+        return 440 * Math.pow(2, ((midi + transposeOffset) - 69) / 12);
     }
 
     async function ensureAudioContext() {
@@ -139,11 +140,13 @@ const SimpleNotePlayer = (() => {
                 const durationMs = parseInt(parts[1], 10) || 500;
                 const isNote = parts[0] !== '@' && parts[0] !== '0';
                 if (isNote) {
+                    const originalMidi = noteToMidi(parts[0]);
                     rawNotes.push({
                         noteName: parts[0],
                         startTimeMs: playheadTimeMs,
                         durationMs: durationMs,
-                        frequency: midiToFreq(noteToMidi(parts[0])),
+                        frequency: midiToFreq(originalMidi),
+                        originalMidi: originalMidi,
                         waveform: track.instrument.waveform || 'triangle',
                         instrument: track.instrument,
                         trackName: track.trackName,
@@ -205,10 +208,18 @@ const SimpleNotePlayer = (() => {
             worker.postMessage({ command: 'updateTrackInstrument', data: { trackId, newInstrument } });
         }
     }
+
+    function setTranspose(semitones) {
+        transposeOffset = semitones;
+        if (isPlaying) {
+            silenceAllNotes();
+            worker.postMessage({ command: 'rescheduleWithTranspose', data: { transposeOffset: semitones } });
+        }
+    }
     
     function getPlaybackState() {
         return { isPlaying, isPaused };
     }
 
-    return { play, stop, pause, resume, seek, updateActiveTracks, updateTrackInstrument, getPlaybackState };
+    return { play, stop, pause, resume, seek, updateActiveTracks, updateTrackInstrument, setTranspose, getPlaybackState };
 })();

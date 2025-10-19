@@ -1,4 +1,3 @@
-
 // File: /midi2text/js/player_main.js (Updated)
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -19,6 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('progress-bar');
     const timeProgress = document.getElementById('time-progress');
     const noteProgress = document.getElementById('note-progress');
+    const transposeEnabledCheckbox = document.getElementById('transpose-enabled');
+    const transposeSliderContainer = document.querySelector('.transpose-slider-container');
+    const transposeSlider = document.getElementById('transpose-slider');
+    const transposeValue = document.getElementById('transpose-value');
 
     let trackCounter = 0;
     let instruments = [
@@ -278,6 +281,25 @@ document.addEventListener('DOMContentLoaded', () => {
         SimpleNotePlayer.seek(targetTimeMs);
     });
 
+    transposeEnabledCheckbox.addEventListener('change', () => {
+        const isEnabled = transposeEnabledCheckbox.checked;
+        transposeSliderContainer.classList.toggle('disabled', !isEnabled);
+        if (!isEnabled) {
+            transposeSlider.value = 0;
+            transposeValue.textContent = '0';
+            SimpleNotePlayer.setTranspose(0);
+        } else {
+            const semitones = parseInt(transposeSlider.value, 10);
+            SimpleNotePlayer.setTranspose(semitones);
+        }
+    });
+
+    transposeSlider.addEventListener('input', () => {
+        const semitones = parseInt(transposeSlider.value, 10);
+        transposeValue.textContent = semitones > 0 ? `+${semitones}` : semitones;
+        SimpleNotePlayer.setTranspose(semitones);
+    });
+
     addTrackButton.addEventListener('click', () => addNewTrack(1, ''));
     manageInstrumentsButton.addEventListener('click', () => instrumentModal.showModal());
     closeModalButton.addEventListener('click', () => instrumentModal.close());
@@ -333,6 +355,12 @@ document.addEventListener('DOMContentLoaded', () => {
             nowPlayingOutput.appendChild(instDiv);
             activeNotes.set(inst.name, new Set());
         });
+
+        if (transposeEnabledCheckbox.checked) {
+            SimpleNotePlayer.setTranspose(parseInt(transposeSlider.value, 10));
+        } else {
+            SimpleNotePlayer.setTranspose(0);
+        }
         
         SimpleNotePlayer.play(tracksData, {
             onNoteOn: (instrument, trackName, noteName) => {

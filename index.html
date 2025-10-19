@@ -44,6 +44,19 @@
         </div>
         <div id="now-playing-output"></div>
     </article>
+
+    <div class="transpose-controls" hidden>
+        <fieldset>
+            <label for="transpose-enabled">
+                <input type="checkbox" id="transpose-enabled" name="transpose-enabled">
+                变调
+            </label>
+        </fieldset>
+        <div class="transpose-slider-container disabled">
+            <input type="range" id="transpose-slider" min="-12" max="12" value="0">
+            <span id="transpose-value">0</span>
+        </div>
+    </div>
     
     <div id="results-container" hidden>
         <div class="results-header">

@@ -1,4 +1,4 @@
-// File: /midi2text/js/player_worker.js (New File)
+// File: /midi2text/js/player_worker.js (Fixed)
 
 let allNotesToPlay = [];
 let currentlyActiveTrackIds = new Set();
@@ -13,6 +13,13 @@ let totalNoteCount = 0;
 let nextNoteIndex = 0;
 
 const TICK_INTERVAL = 25;
+
+const NOTE_TO_MIDI = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 };
+
+function midiToFreq(midi, transposeOffset = 0) {
+    if (midi === null) return 0;
+    return 440 * Math.pow(2, ((midi + transposeOffset) - 69) / 12);
+}
 
 function tick() {
     if (!isPlaying || isPaused) return;
@@ -119,6 +126,13 @@ function updateTrackInstrument(data) {
     }
 }
 
+function rescheduleWithTranspose(transposeOffset) {
+    if (!isPlaying) return;
+    for (let i = 0; i < allNotesToPlay.length; i++) {
+        allNotesToPlay[i].frequency = midiToFreq(allNotesToPlay[i].originalMidi, transposeOffset);
+    }
+}
+
 self.onmessage = function(e) {
     const { command, data } = e.data;
     switch (command) {
@@ -142,6 +156,9 @@ self.onmessage = function(e) {
             break;
         case 'updateTrackInstrument':
             updateTrackInstrument(data);
+            break;
+        case 'rescheduleWithTranspose':
+            rescheduleWithTranspose(data.transposeOffset);
             break;
     }
 };
